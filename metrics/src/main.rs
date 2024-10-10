@@ -19,6 +19,7 @@ use opentelemetry::{
 use opentelemetry_otlp::WithExportConfig;
 
 mod logreader;
+mod logreceiver;
 mod logprocessor;
 mod collectors;
 
@@ -98,6 +99,9 @@ impl TypedValueParser for MapValueParser {
 pub(crate) struct Configuration {
     #[clap(name ="listen", long = "listen", env = "LISTEN_ADDR", default_value = "0.0.0.0:9090")]
     listen_addr: String,
+
+    #[clap(name ="ws_listen", long = "ws_listen", env = "WS_LISTEN_ADDR", default_value = "0.0.0.0:9190")]
+    ws_listen_addr: String,
 
     #[clap(name ="hasura-endpoint", long = "hasura-endpoint", env = "HASURA_GRAPHQL_ENDPOINT", default_value = "http://localhost:8080")]
     hasura_addr: String,
@@ -194,6 +198,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let res = tokio::try_join!(
         webserver(&config),
+        logreceiver::ws_server(&config, &tracer, &metric_obj),
         logreader::read_file(&tracer, &config.log_file, &metric_obj, config.sleep_time, terminate_rx.clone()),
         collectors::run_metadata_collector(&config, &metric_obj, terminate_rx.clone())
     );
