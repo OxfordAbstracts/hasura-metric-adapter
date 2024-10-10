@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use actix_web::{App, get, HttpServer, Responder};
+use actix_web::{App, get, web, HttpServer, Responder};
 
 use clap::Parser;
 use clap::builder::TypedValueParser;
@@ -171,6 +171,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize the opentel tracer
     let tracer = init_tracer(&config.opentel_addr)?;
+    let tracer = web::Data::new(tracer);
 
     if config.hasura_admin.is_none() {
         let admin_collectors = [
@@ -195,10 +196,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let terminate_rx = signal_handler();
 
     let metric_obj: Telemetry = Telemetry::new(config.common_labels.clone().unwrap_or_default(),config.histogram_buckets.clone());
+    let metric_obj = web::Data::new(metric_obj);
 
     let res = tokio::try_join!(
         webserver(&config),
-        logreceiver::ws_server(&config, &tracer, &metric_obj),
+        logreceiver::ws_server(&config, tracer.clone(), metric_obj.clone()),
         logreader::read_file(&tracer, &config.log_file, &metric_obj, config.sleep_time, terminate_rx.clone()),
         collectors::run_metadata_collector(&config, &metric_obj, terminate_rx.clone())
     );

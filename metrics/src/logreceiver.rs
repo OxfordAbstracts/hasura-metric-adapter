@@ -1,52 +1,69 @@
-use actix_web::{rt, web, App, Error, HttpRequest, HttpResponse, HttpServer};
-use actix_ws::AggregatedMessage;
-use futures_util::StreamExt as _;
+use actix_web::{web::{self, route}, App, Error, HttpRequest, HttpResponse, HttpServer};
 use log::warn;
-
-use crate::{Configuration, logprocessor, Telemetry};
 use opentelemetry::sdk::trace;
 
-async fn receive_log(tracer: &trace::Tracer, metric_obj: &Telemetry, req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
-    let (res, mut session, stream) = actix_ws::handle(&req, stream)?;
+use crate::{logprocessor, telemetry::Telemetry, Configuration};
 
-    let mut stream = stream
-        .aggregate_continuations()
-        // aggregate continuation frames up to 1MiB
-        .max_continuation_size(2_usize.pow(20));
+// async fn receive_log(tracer: &trace::Tracer, metric_obj: &Telemetry, req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
+//     let (res, mut session, stream) = actix_ws::handle(&req, stream)?;
 
-    // start task but don't wait for it
-    rt::spawn(async move {
-        // receive messages from websocket
-        while let Some(msg) = stream.next().await {
-            match msg {
-                Ok(AggregatedMessage::Text(text)) => {
-                    logprocessor::log_processor(&text, metric_obj, tracer);
-                }
+//     let mut stream = stream
+//         .aggregate_continuations()
+//         // aggregate continuation frames up to 1MiB
+//         .max_continuation_size(2_usize.pow(20));
 
-                // Ok(AggregatedMessage::Binary(bin)) => {
-                //     // echo binary message
-                //     session.binary(bin).await.unwrap();
-                // }
+//     // start task but don't wait for it
+//     rt::spawn(async move {
+//         // receive messages from websocket
+//         while let Some(msg) = stream.next().await {
+//             match msg {
+//                 Ok(AggregatedMessage::Text(text)) => {
+//                     logprocessor::log_processor(&text, metric_obj, tracer);
+//                 }
 
-                Ok(AggregatedMessage::Ping(msg)) => {
-                    // respond to PING frame with PONG frame
-                    session.pong(&msg).await.unwrap();
-                }
+//                 // Ok(AggregatedMessage::Binary(bin)) => {
+//                 //     // echo binary message
+//                 //     session.binary(bin).await.unwrap();
+//                 // }
 
-                _ => {}
-            }
-        }
-    });
+//                 Ok(AggregatedMessage::Ping(msg)) => {
+//                     // respond to PING frame with PONG frame
+//                     session.pong(&msg).await.unwrap();
+//                 }
 
-    // respond immediately with response connected to WS session
-    Ok(res)
+//                 _ => {}
+//             }
+//         }
+//     });
+
+//     // respond immediately with response connected to WS session
+//     Ok(res)
+// }
+
+async fn receive_log(
+    tracer: web::Data<trace::Tracer>,
+    metric_obj: web::Data<Telemetry>,
+    _req: HttpRequest,
+    _stream: web::Payload,
+) -> Result<HttpResponse, Error> {
+    let text = "test".to_string();
+    let _ = logprocessor::log_processor(&text, &metric_obj, &tracer).await;
+    return Ok(HttpResponse::Ok().finish());
 }
 
-// #[actix_web::main]
-pub async fn ws_server(cfg: &Configuration, tracer: &trace::Tracer, metric_obj: &Telemetry) -> std::io::Result<()> {
+pub async fn ws_server(
+    cfg: &Configuration,
+    tracer: web::Data<trace::Tracer>,
+    metric_obj: web::Data<Telemetry>,
+) -> std::io::Result<()> {
     warn!("Starting websocket server @ {}", cfg.ws_listen_addr);
-    HttpServer::new(|| App::new().route("/", web::get().to(receive_log)))
-        .bind(&cfg.ws_listen_addr)?
-        .run()
-        .await
+    HttpServer::new(move || {
+        App::new()
+            .app_data(tracer.clone())
+            .app_data(metric_obj.clone())
+            .route("/ws", route().to(receive_log))
+    })
+    .bind(&cfg.ws_listen_addr)?
+    .run()
+    .await
 }
