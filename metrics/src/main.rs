@@ -113,7 +113,7 @@ pub(crate) struct Configuration {
     hasura_admin: Option<String>,
 
     #[clap(name ="logfile", long = "logfile", env = "LOG_FILE")]
-    log_file: String,
+    log_file: Option<String>,
 
     #[clap(name ="sleep", long = "sleep", env = "SLEEP_TIME", default_value = "1000")]
     sleep_time: u64,
@@ -189,7 +189,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     config.disabled_collectors.sort();
     config.disabled_collectors.dedup();
 
-    info!("hasura-metrics-adapter on {0} for hasura at {1} parsing hasura log '{2}'", config.listen_addr, config.hasura_addr, config.log_file);
+    info!("hasura-metrics-adapter on {0} for hasura at {1}", config.listen_addr, config.hasura_addr);
 
     debug!("Configuration: {:?}", config);
 
@@ -200,8 +200,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let res = tokio::try_join!(
         webserver(&config),
+        // logreader::read_file(&tracer, &log_file, &metric_obj, config.sleep_time, terminate_rx.clone()),
         logreceiver::ws_server(&config, tracer.clone(), metric_obj.clone()),
-        logreader::read_file(&tracer, &config.log_file, &metric_obj, config.sleep_time, terminate_rx.clone()),
         collectors::run_metadata_collector(&config, &metric_obj, terminate_rx.clone())
     );
 

@@ -1,54 +1,29 @@
-use actix_web::{web::{self, route}, App, Error, HttpRequest, HttpResponse, HttpServer};
+use actix_web::{rt, web::{self, route}, App, Error, HttpRequest, HttpResponse, HttpServer};
+use actix_ws::Message;
 use log::warn;
 use opentelemetry::sdk::trace;
 
 use crate::{logprocessor, telemetry::Telemetry, Configuration};
-
-// async fn receive_log(tracer: &trace::Tracer, metric_obj: &Telemetry, req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
-//     let (res, mut session, stream) = actix_ws::handle(&req, stream)?;
-
-//     let mut stream = stream
-//         .aggregate_continuations()
-//         // aggregate continuation frames up to 1MiB
-//         .max_continuation_size(2_usize.pow(20));
-
-//     // start task but don't wait for it
-//     rt::spawn(async move {
-//         // receive messages from websocket
-//         while let Some(msg) = stream.next().await {
-//             match msg {
-//                 Ok(AggregatedMessage::Text(text)) => {
-//                     logprocessor::log_processor(&text, metric_obj, tracer);
-//                 }
-
-//                 // Ok(AggregatedMessage::Binary(bin)) => {
-//                 //     // echo binary message
-//                 //     session.binary(bin).await.unwrap();
-//                 // }
-
-//                 Ok(AggregatedMessage::Ping(msg)) => {
-//                     // respond to PING frame with PONG frame
-//                     session.pong(&msg).await.unwrap();
-//                 }
-
-//                 _ => {}
-//             }
-//         }
-//     });
-
-//     // respond immediately with response connected to WS session
-//     Ok(res)
-// }
+use futures::StreamExt;
 
 async fn receive_log(
     tracer: web::Data<trace::Tracer>,
     metric_obj: web::Data<Telemetry>,
-    _req: HttpRequest,
-    _stream: web::Payload,
+    req: HttpRequest,
+    stream: web::Payload,
 ) -> Result<HttpResponse, Error> {
-    let text = "test".to_string();
-    let _ = logprocessor::log_processor(&text, &metric_obj, &tracer).await;
-    return Ok(HttpResponse::Ok().finish());
+    let (res, mut session, mut stream) = actix_ws::handle(&req, stream)?;
+
+    rt::spawn(async move {
+        while let Some(msg) = stream.next().await {
+            if let Ok(Message::Text(text)) = msg {
+                let _ = logprocessor::log_processor(&text.to_string(), &metric_obj, &tracer).await;
+                session.text("{\"success\": true}").await.unwrap();
+            }
+        }
+    });
+
+    Ok(res)
 }
 
 pub async fn ws_server(
