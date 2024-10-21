@@ -16,12 +16,12 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v1
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
         with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GH_REGISTRY_TOKEN }}
+          role-to-assume: arn:aws:iam::290051822633:role/ci/hasura-metric-adapter/github_hasura_metric_adapter
+          aws-region: eu-west-2
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
       - name: Set up Docker Buildx
@@ -32,5 +32,5 @@ jobs:
           push: true # Will only build if this is not here
           platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
-            ghcr.io/${{ github.repository }}:latest
+            290051822633.dkr.ecr.eu-west-2.amazonaws.com/hasura-metric-adapter:${{ github.ref_name }}
+            290051822633.dkr.ecr.eu-west-2.amazonaws.com/hasura-metric-adapter:latest
