@@ -1,5 +1,9 @@
 name: Deploy Docker
 
+permissions:
+  id-token: write
+  contents: read
+
 # Run workflow on tags starting with v (eg. v2, v1.2.0)
 on:
   push:
