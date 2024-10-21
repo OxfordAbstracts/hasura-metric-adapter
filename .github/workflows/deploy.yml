@@ -3,9 +3,13 @@ name: Deploy Docker
 # Run workflow on tags starting with v (eg. v2, v1.2.0)
 on:
   push:
-    tags:        
-      - v*
+    # tags:
+    #   - v*
+  branches:
+    - websocket
 
+
+# todo tag and push to ecr
 jobs:
   Deploy:
     runs-on: ubuntu-latest
