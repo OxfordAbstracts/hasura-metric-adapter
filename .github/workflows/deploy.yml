@@ -5,8 +5,8 @@ on:
   push:
     # tags:
     #   - v*
-  branches:
-    - websocket
+    branches:
+      - websocket
 
 
 # todo tag and push to ecr
