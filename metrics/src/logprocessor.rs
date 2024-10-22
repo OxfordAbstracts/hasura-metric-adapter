@@ -189,7 +189,6 @@ async fn handle_websocket_log(log: &BaseLog, metric_obj: &Telemetry) {
 }
 
 pub async fn log_processor(logline: &String, metric_obj: &Telemetry, tracer: &trace::Tracer) {
-    println!("{}", logline);
     metric_obj.LOG_LINES_COUNTER_TOTAL.inc();
     let log_result = from_str::<BaseLog>(logline);
     match log_result {
@@ -202,6 +201,7 @@ pub async fn log_processor(logline: &String, metric_obj: &Telemetry, tracer: &tr
                     handle_http_log(&log,metric_obj).await;
                 }
                 "websocket-log" => {
+                    println!("Got WS log: {}", logline);
                     handle_websocket_log(&log,metric_obj).await;
                 }
                 _ => {}
