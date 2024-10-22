@@ -189,7 +189,7 @@ async fn handle_websocket_log(log: &BaseLog, metric_obj: &Telemetry) {
 }
 
 pub async fn log_processor(logline: &String, metric_obj: &Telemetry, tracer: &trace::Tracer) {
-    println!("{}", logline); // TODO: strip blank lines?
+    println!("{}", logline);
     metric_obj.LOG_LINES_COUNTER_TOTAL.inc();
     let log_result = from_str::<BaseLog>(logline);
     match log_result {
@@ -206,11 +206,11 @@ pub async fn log_processor(logline: &String, metric_obj: &Telemetry, tracer: &tr
                 }
                 _ => {}
             };
-            
+
             //Send log to opentel:
             // tracer.in_span("hasura-log", |cx| {
             //     let span = cx.span();
-            //     span.add_event(                            
+            //     span.add_event(
             //         logline.clone(),
             //         vec![],
             //     );
