@@ -19,8 +19,11 @@ async fn receive_log(
             if let Ok(Message::Text(text)) = msg {
                 let _ = logprocessor::log_processor(&text.trim().to_string(), &metric_obj, &tracer).await;
                 session.text("{\"success\": true}").await.unwrap();
+            } else {
+                // TODO: improve
+                warn!("Success: false");
+                session.text("{\"success\": false}").await.unwrap();
             }
-            // TODO: log if failed
         }
     });
 

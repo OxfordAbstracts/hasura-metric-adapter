@@ -2,6 +2,7 @@ use log::warn;
 
 use serde::Deserialize;
 use serde_json::{from_str, from_value};
+use base64::prelude::{Engine as _, BASE64_STANDARD_NO_PAD};
 use crate::Telemetry;
 
 use opentelemetry::{
@@ -220,7 +221,7 @@ pub async fn log_processor(logline: &String, metric_obj: &Telemetry, tracer: &tr
         }
         Err(e) => {
             warn!("Failed to parse log line: {}", e);
-            warn!("Line was: {}", logline);
+            warn!("Line was b64: {}", BASE64_STANDARD_NO_PAD.encode(logline));
         }
     };
 }
