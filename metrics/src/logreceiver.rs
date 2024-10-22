@@ -28,8 +28,7 @@ async fn receive_log(
                 }
 
                 _ => {
-                    // TODO: improve
-                    warn!("Success: false");
+                    warn!("Unhandled message: {:?}", msg);
                     session.text("{\"success\": false}").await.unwrap();
                 }
             }
