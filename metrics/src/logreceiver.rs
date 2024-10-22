@@ -1,6 +1,6 @@
 use actix_web::{rt, web::{self, route}, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_ws::{AggregatedMessage, Message};
-use log::warn;
+use log::{warn, error};
 use opentelemetry::sdk::trace;
 
 use crate::{logprocessor, telemetry::Telemetry, Configuration};
@@ -16,8 +16,8 @@ async fn receive_log(
 
     let mut stream = stream
         .aggregate_continuations()
-        // aggregate continuation frames up to 1MiB
-        .max_continuation_size(2_usize.pow(20));
+        // aggregate continuation frames up to 2MiB
+        .max_continuation_size(2_usize.pow(21));
 
     rt::spawn(async move {
         while let Some(msg) = stream.next().await {
@@ -34,15 +34,12 @@ async fn receive_log(
                     session.pong(&msg).await.unwrap();
                 }
 
-                Err(actix_ws::ProtocolError::Overflow) => {
-                    warn!("overflow error: {:#?}", msg);
+                Err(e) => {
+                    error!("Error parsing message: {:#?}", e);
                     session.text("{\"success\": false}").await.unwrap();
                 }
 
-                _ => {
-                    warn!("Unhandled message: {:#?}", msg);
-                    session.text("{\"success\": false}").await.unwrap();
-                }
+                _ => {}
             }
         }
     });
