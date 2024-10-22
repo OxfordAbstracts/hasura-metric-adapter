@@ -100,7 +100,7 @@ pub(crate) struct Configuration {
     #[clap(name ="listen", long = "listen", env = "LISTEN_ADDR", default_value = "0.0.0.0:9090")]
     listen_addr: String,
 
-    #[clap(name ="ws_listen", long = "ws_listen", env = "WS_LISTEN_ADDR", default_value = "0.0.0.0:9190")]
+    #[clap(name ="ws-listen", long = "ws-listen", env = "WS_LISTEN_ADDR", default_value = "0.0.0.0:9190")]
     ws_listen_addr: String,
 
     #[clap(name ="hasura-endpoint", long = "hasura-endpoint", env = "HASURA_GRAPHQL_ENDPOINT", default_value = "http://localhost:8080")]

@@ -1,6 +1,6 @@
 use actix_web::{rt, web::{self, route}, App, Error, HttpRequest, HttpResponse, HttpServer};
-use actix_ws::{AggregatedMessage, Message};
-use log::{warn, error};
+use actix_ws::AggregatedMessage;
+use log::{info, warn, error};
 use opentelemetry::sdk::trace;
 
 use crate::{logprocessor, telemetry::Telemetry, Configuration};
@@ -14,13 +14,13 @@ async fn receive_log(
 ) -> Result<HttpResponse, Error> {
     let (res, mut session, stream) = actix_ws::handle(&req, stream)?;
 
-    let two_megs = 2 * 1024 * 1024;
+    // Fluentbit chunks can be up to 2MiB
+    let two_mib = 2 * 1024 * 1024;
 
     let mut stream = stream
-        .max_frame_size(two_megs)
+        .max_frame_size(two_mib)
         .aggregate_continuations()
-        // aggregate continuation frames up to 1MiB
-        .max_continuation_size(two_megs);
+        .max_continuation_size(two_mib);
 
     rt::spawn(async move {
         while let Some(msg) = stream.next().await {
@@ -58,7 +58,7 @@ pub async fn ws_server(
     tracer: web::Data<trace::Tracer>,
     metric_obj: web::Data<Telemetry>,
 ) -> std::io::Result<()> {
-    warn!("Starting websocket server @ {}", cfg.ws_listen_addr);
+    info!("Starting websocket server @ {}", cfg.ws_listen_addr);
     HttpServer::new(move || {
         App::new()
             .app_data(tracer.clone())
