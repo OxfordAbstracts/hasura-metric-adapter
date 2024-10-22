@@ -18,7 +18,9 @@ async fn receive_log(
         while let Some(msg) = stream.next().await {
             match msg {
                 Ok(Message::Text(text)) => {
-                    let _ = logprocessor::log_processor(&text.trim().to_string(), &metric_obj, &tracer).await;
+                    for line in text.split("\n") {
+                        let _ = logprocessor::log_processor(&line.trim().to_string(), &metric_obj, &tracer).await;
+                    }
                     session.text("{\"success\": true}").await.unwrap();
                 }
 
