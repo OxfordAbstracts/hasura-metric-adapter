@@ -16,13 +16,22 @@ async fn receive_log(
 
     rt::spawn(async move {
         while let Some(msg) = stream.next().await {
-            if let Ok(Message::Text(text)) = msg {
-                let _ = logprocessor::log_processor(&text.trim().to_string(), &metric_obj, &tracer).await;
-                session.text("{\"success\": true}").await.unwrap();
-            } else {
-                // TODO: improve
-                warn!("Success: false");
-                session.text("{\"success\": false}").await.unwrap();
+            match msg {
+                Ok(Message::Text(text)) => {
+                    let _ = logprocessor::log_processor(&text.trim().to_string(), &metric_obj, &tracer).await;
+                    session.text("{\"success\": true}").await.unwrap();
+                }
+
+                Ok(Message::Ping(msg)) => {
+                    // respond to PING frame with PONG frame
+                    session.pong(&msg).await.unwrap();
+                }
+
+                _ => {
+                    // TODO: improve
+                    warn!("Success: false");
+                    session.text("{\"success\": false}").await.unwrap();
+                }
             }
         }
     });
