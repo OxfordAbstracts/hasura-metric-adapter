@@ -193,7 +193,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     debug!("Configuration: {:?}", config);
 
-    // let terminate_rx = signal_handler();
+    let terminate_rx = signal_handler();
 
     let metric_obj: Telemetry = Telemetry::new(config.common_labels.clone().unwrap_or_default(),config.histogram_buckets.clone());
     let metric_obj = web::Data::new(metric_obj);
@@ -202,7 +202,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         webserver(&config),
         // logreader::read_file(&tracer, &log_file, &metric_obj, config.sleep_time, terminate_rx.clone()),
         logreceiver::ws_server(&config, tracer.clone(), metric_obj.clone()),
-        // collectors::run_metadata_collector(&config, &metric_obj, terminate_rx.clone())
+        collectors::run_metadata_collector(&config, &metric_obj, terminate_rx.clone())
     );
 
     match res {

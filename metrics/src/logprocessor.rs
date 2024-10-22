@@ -2,7 +2,6 @@ use log::warn;
 
 use serde::Deserialize;
 use serde_json::{from_str, from_value};
-use base64::prelude::{Engine as _, BASE64_STANDARD_NO_PAD};
 use crate::Telemetry;
 
 use opentelemetry::{
@@ -202,26 +201,25 @@ pub async fn log_processor(logline: &String, metric_obj: &Telemetry, tracer: &tr
                     handle_http_log(&log,metric_obj).await;
                 }
                 "websocket-log" => {
-                    println!("Got WS log: {}", logline);
                     handle_websocket_log(&log,metric_obj).await;
                 }
                 _ => {}
             };
 
             //Send log to opentel:
-            // tracer.in_span("hasura-log", |cx| {
-            //     let span = cx.span();
-            //     span.add_event(
-            //         logline.clone(),
-            //         vec![],
-            //     );
-            //     span.set_attribute(KeyValue::new("hasura-timestamp", log.timestamp));
-            //     span.set_attribute(KeyValue::new("hasura-logtype", log.logtype));
-            // });
+            tracer.in_span("hasura-log", |cx| {
+                let span = cx.span();
+                span.add_event(
+                    logline.clone(),
+                    vec![],
+                );
+                span.set_attribute(KeyValue::new("hasura-timestamp", log.timestamp));
+                span.set_attribute(KeyValue::new("hasura-logtype", log.logtype));
+            });
         }
         Err(e) => {
             warn!("Failed to parse log line: {}", e);
-            warn!("Line was b64: {}", BASE64_STANDARD_NO_PAD.encode(logline));
+            warn!("Line was: {}", logline);
         }
     };
 }
