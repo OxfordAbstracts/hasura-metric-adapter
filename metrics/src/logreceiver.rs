@@ -39,7 +39,10 @@ async fn receive_log(
                     session.text("{\"success\": false}").await.unwrap();
                 }
 
-                _ => {}
+                e => {
+                    warn!("Unhandled message type: {:#?}", e);
+                    session.text("{\"success\": false}").await.unwrap();
+                }
             }
         }
     });
