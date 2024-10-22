@@ -14,10 +14,13 @@ async fn receive_log(
 ) -> Result<HttpResponse, Error> {
     let (res, mut session, stream) = actix_ws::handle(&req, stream)?;
 
+    let two_megs = 2 * 1024 * 1024;
+
     let mut stream = stream
+        .max_frame_size(two_megs)
         .aggregate_continuations()
-        // aggregate continuation frames up to 2MiB
-        .max_continuation_size(2_usize.pow(21));
+        // aggregate continuation frames up to 1MiB
+        .max_continuation_size(two_megs);
 
     rt::spawn(async move {
         while let Some(msg) = stream.next().await {
