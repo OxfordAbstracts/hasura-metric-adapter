@@ -23,7 +23,7 @@ async fn receive_log(
         while let Some(msg) = stream.next().await {
             match msg {
                 Ok(AggregatedMessage::Text(text)) => {
-                    for line in text.split("\n") {
+                    for line in text.trim().split("\n") {
                         let _ = logprocessor::log_processor(&line.trim().to_string(), &metric_obj, &tracer).await;
                     }
                     session.text("{\"success\": true}").await.unwrap();
