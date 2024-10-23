@@ -19,7 +19,6 @@ use opentelemetry::{
 use opentelemetry_otlp::WithExportConfig;
 
 mod logreader;
-mod logreceiver;
 mod logprocessor;
 mod collectors;
 
@@ -123,9 +122,6 @@ pub(crate) struct Configuration {
     #[clap(name ="listen", long = "listen", env = "LISTEN_ADDR", default_value = "0.0.0.0:9090")]
     listen_addr: String,
 
-    #[clap(name ="ws-listen", long = "ws-listen", env = "WS_LISTEN_ADDR", default_value = "0.0.0.0:9190")]
-    ws_listen_addr: String,
-
     #[clap(name ="hasura-endpoint", long = "hasura-endpoint", env = "HASURA_GRAPHQL_ENDPOINT", default_value = "http://localhost:8080")]
     hasura_addr: String,
 
@@ -224,7 +220,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let res = tokio::try_join!(
         webserver(tracer, metric_obj, &config),
         // logreader::read_file(&tracer, &log_file, &metric_obj, config.sleep_time, terminate_rx.clone()),
-        // logreceiver::ws_server(&config, tracer.clone(), metric_obj.clone()),
         // collectors::run_metadata_collector(&config, &metric_obj, terminate_rx.clone())
     );
 
