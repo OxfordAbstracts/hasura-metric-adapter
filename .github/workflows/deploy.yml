@@ -1,23 +1,33 @@
 name: Deploy Docker
 
+permissions:
+  id-token: write
+  contents: read
+
 # Run workflow on tags starting with v (eg. v2, v1.2.0)
 on:
   push:
-    tags:        
-      - v*
+    # tags:
+    #   - v*
+    branches:
+      - websocket
 
+
+# todo tag and push to ecr
 jobs:
   Deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v1
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GH_REGISTRY_TOKEN }}
+          role-to-assume: arn:aws:iam::290051822633:role/ci/hasura-metric-adapter/github_hasura-metric-adapter
+          aws-region: eu-west-2
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
       - name: Set up Docker Buildx
@@ -28,5 +38,5 @@ jobs:
           push: true # Will only build if this is not here
           platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
-            ghcr.io/${{ github.repository }}:latest
+            290051822633.dkr.ecr.eu-west-2.amazonaws.com/hasura-metric-adapter:${{ github.sha }}
+            290051822633.dkr.ecr.eu-west-2.amazonaws.com/hasura-metric-adapter:latest

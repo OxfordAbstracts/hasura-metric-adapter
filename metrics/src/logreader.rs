@@ -15,6 +15,7 @@ use opentelemetry::sdk::trace;
 
 
 pub async fn read_file(tracer: &trace::Tracer, log_file: &str, metric_obj: &Telemetry, sleep_time: u64, mut termination_rx: watch::Receiver<()>) -> Result<()> {
+    info!("reading log file at '{0}'", log_file);
     loop {
         tokio::select! {
             biased;

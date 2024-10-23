@@ -152,7 +152,8 @@ async fn handle_websocket_log(log: &BaseLog, metric_obj: &Telemetry) {
     let detail_result = from_value::<WebSocketDetail>(log.detail.clone());
     match detail_result {
         Ok(http) => {
-            match &http.event.event_type as &str {
+            let event_type = http.event.event_type;
+            match &event_type as &str {
                 "accepted" => metric_obj.ACTIVE_WEBSOCKET.inc(),
                 "closed" => metric_obj.ACTIVE_WEBSOCKET.dec(),
                 "operation" => {
@@ -189,7 +190,6 @@ async fn handle_websocket_log(log: &BaseLog, metric_obj: &Telemetry) {
 }
 
 pub async fn log_processor(logline: &String, metric_obj: &Telemetry, tracer: &trace::Tracer) {
-    //println!("{}", logline);
     metric_obj.LOG_LINES_COUNTER_TOTAL.inc();
     let log_result = from_str::<BaseLog>(logline);
     match log_result {
@@ -206,20 +206,21 @@ pub async fn log_processor(logline: &String, metric_obj: &Telemetry, tracer: &tr
                 }
                 _ => {}
             };
-            
+
             //Send log to opentel:
-            tracer.in_span("hasura-log", |cx| {
-                let span = cx.span();
-                span.add_event(                            
-                    logline.clone(),
-                    vec![],
-                );
-                span.set_attribute(KeyValue::new("hasura-timestamp", log.timestamp));
-                span.set_attribute(KeyValue::new("hasura-logtype", log.logtype));
-            });
+            // tracer.in_span("hasura-log", |cx| {
+            //     let span = cx.span();
+            //     span.add_event(
+            //         logline.clone(),
+            //         vec![],
+            //     );
+            //     span.set_attribute(KeyValue::new("hasura-timestamp", log.timestamp));
+            //     span.set_attribute(KeyValue::new("hasura-logtype", log.logtype));
+            // });
         }
         Err(e) => {
             warn!("Failed to parse log line: {}", e);
+            warn!("Line was: {}", logline);
         }
     };
 }

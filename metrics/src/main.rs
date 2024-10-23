@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use actix_web::{App, get, HttpServer, Responder};
+use actix_web::{App, post, get, web, HttpServer, Responder, Error};
 
 use clap::Parser;
 use clap::builder::TypedValueParser;
@@ -38,9 +38,32 @@ async fn metrics() -> impl Responder {
     String::from_utf8(buffer.clone()).unwrap()
 }
 
-async fn webserver(cfg: &Configuration) -> std::io::Result<()> {
+#[post("/recv")]
+async fn recv(
+    tracer: web::Data<trace::Tracer>,
+    metric_obj: web::Data<Telemetry>,
+    body: String
+) -> Result<String, Error> {
+    debug!("Received message, length: {}", body.chars().count());
+    for line in body.trim().split("\n") {
+        let _ = logprocessor::log_processor(&line.trim().to_string(), &metric_obj, &tracer).await;
+    }
+
+    Ok("Ok".to_string())
+}
+
+async fn webserver(
+    tracer: web::Data<trace::Tracer>,
+    metric_obj: web::Data<Telemetry>,
+    cfg: &Configuration
+    ) -> std::io::Result<()> {
     warn!("Starting metric server @ {}", cfg.listen_addr);
-    HttpServer::new(|| App::new().service(metrics))
+    HttpServer::new(move || App::new()
+            .app_data(tracer.clone())
+            .app_data(metric_obj.clone())
+        .service(metrics)
+        .service(recv)
+    )
         .bind(&cfg.listen_addr)?
         .run()
         .await
@@ -109,7 +132,7 @@ pub(crate) struct Configuration {
     hasura_admin: Option<String>,
 
     #[clap(name ="logfile", long = "logfile", env = "LOG_FILE")]
-    log_file: String,
+    log_file: Option<String>,
 
     #[clap(name ="sleep", long = "sleep", env = "SLEEP_TIME", default_value = "1000")]
     sleep_time: u64,
@@ -167,6 +190,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize the opentel tracer
     let tracer = init_tracer(&config.opentel_addr)?;
+    let tracer = web::Data::new(tracer);
 
     if config.hasura_admin.is_none() {
         let admin_collectors = [
@@ -184,18 +208,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     config.disabled_collectors.sort();
     config.disabled_collectors.dedup();
 
-    info!("hasura-metrics-adapter on {0} for hasura at {1} parsing hasura log '{2}'", config.listen_addr, config.hasura_addr, config.log_file);
+    info!("hasura-metrics-adapter on {0} for hasura at {1}", config.listen_addr, config.hasura_addr);
 
     debug!("Configuration: {:?}", config);
 
-    let terminate_rx = signal_handler();
+    // let terminate_rx = signal_handler();
 
     let metric_obj: Telemetry = Telemetry::new(config.common_labels.clone().unwrap_or_default(),config.histogram_buckets.clone());
+    let metric_obj = web::Data::new(metric_obj);
 
     let res = tokio::try_join!(
-        webserver(&config),
-        logreader::read_file(&tracer, &config.log_file, &metric_obj, config.sleep_time, terminate_rx.clone()),
-        collectors::run_metadata_collector(&config, &metric_obj, terminate_rx.clone())
+        webserver(tracer, metric_obj, &config),
+        // logreader::read_file(&tracer, &log_file, &metric_obj, config.sleep_time, terminate_rx.clone()),
+        // collectors::run_metadata_collector(&config, &metric_obj, terminate_rx.clone())
     );
 
     match res {
