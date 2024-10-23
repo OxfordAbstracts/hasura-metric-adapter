@@ -23,7 +23,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::290051822633:role/ci/hasura-metric-adapter/ecr_push
+          role-to-assume: arn:aws:iam::290051822633:role/ci/hasura-metric-adapter/github_hasura_metric_adapter
           aws-region: eu-west-2
       - name: Login to Amazon ECR
         id: login-ecr
