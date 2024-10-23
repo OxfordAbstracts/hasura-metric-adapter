@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use actix_web::{App, get, web, HttpServer, Responder};
+use actix_web::{App, post, get, web, HttpServer, Responder, Error};
 
 use clap::Parser;
 use clap::builder::TypedValueParser;
@@ -39,9 +39,32 @@ async fn metrics() -> impl Responder {
     String::from_utf8(buffer.clone()).unwrap()
 }
 
-async fn webserver(cfg: &Configuration) -> std::io::Result<()> {
+#[post("/recv")]
+async fn recv(
+    tracer: web::Data<trace::Tracer>,
+    metric_obj: web::Data<Telemetry>,
+    body: String
+) -> Result<String, Error> {
+    debug!("Received message, length: {}", body.chars().count());
+    for line in body.trim().split("\n") {
+        let _ = logprocessor::log_processor(&line.trim().to_string(), &metric_obj, &tracer).await;
+    }
+
+    Ok("Ok".to_string())
+}
+
+async fn webserver(
+    tracer: web::Data<trace::Tracer>,
+    metric_obj: web::Data<Telemetry>,
+    cfg: &Configuration
+    ) -> std::io::Result<()> {
     warn!("Starting metric server @ {}", cfg.listen_addr);
-    HttpServer::new(|| App::new().service(metrics))
+    HttpServer::new(move || App::new()
+            .app_data(tracer.clone())
+            .app_data(metric_obj.clone())
+        .service(metrics)
+        .service(recv)
+    )
         .bind(&cfg.listen_addr)?
         .run()
         .await
@@ -199,9 +222,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let metric_obj = web::Data::new(metric_obj);
 
     let res = tokio::try_join!(
-        webserver(&config),
+        webserver(tracer, metric_obj, &config),
         // logreader::read_file(&tracer, &log_file, &metric_obj, config.sleep_time, terminate_rx.clone()),
-        logreceiver::ws_server(&config, tracer.clone(), metric_obj.clone()),
+        // logreceiver::ws_server(&config, tracer.clone(), metric_obj.clone()),
         // collectors::run_metadata_collector(&config, &metric_obj, terminate_rx.clone())
     );
 

@@ -1,4 +1,4 @@
-use log::warn;
+use log::{debug, warn};
 
 use serde::Deserialize;
 use serde_json::{from_str, from_value};
@@ -152,7 +152,9 @@ async fn handle_websocket_log(log: &BaseLog, metric_obj: &Telemetry) {
     let detail_result = from_value::<WebSocketDetail>(log.detail.clone());
     match detail_result {
         Ok(http) => {
-            match &http.event.event_type as &str {
+            let event_type = http.event.event_type;
+            debug!("Got websocket event: {}", event_type);
+            match &event_type as &str {
                 "accepted" => metric_obj.ACTIVE_WEBSOCKET.inc(),
                 "closed" => metric_obj.ACTIVE_WEBSOCKET.dec(),
                 "operation" => {
