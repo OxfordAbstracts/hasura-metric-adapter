@@ -207,15 +207,15 @@ pub async fn log_processor(logline: &String, metric_obj: &Telemetry, tracer: &tr
             };
 
             //Send log to opentel:
-            tracer.in_span("hasura-log", |cx| {
-                let span = cx.span();
-                span.add_event(
-                    logline.clone(),
-                    vec![],
-                );
-                span.set_attribute(KeyValue::new("hasura-timestamp", log.timestamp));
-                span.set_attribute(KeyValue::new("hasura-logtype", log.logtype));
-            });
+            // tracer.in_span("hasura-log", |cx| {
+            //     let span = cx.span();
+            //     span.add_event(
+            //         logline.clone(),
+            //         vec![],
+            //     );
+            //     span.set_attribute(KeyValue::new("hasura-timestamp", log.timestamp));
+            //     span.set_attribute(KeyValue::new("hasura-logtype", log.logtype));
+            // });
         }
         Err(e) => {
             warn!("Failed to parse log line: {}", e);
