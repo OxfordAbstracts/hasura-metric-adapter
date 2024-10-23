@@ -1,6 +1,6 @@
 use actix_web::{rt, web::{self, route}, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_ws::AggregatedMessage;
-use log::{info, warn, error};
+use log::{debug, info, warn, error};
 use opentelemetry::sdk::trace;
 
 use crate::{logprocessor, telemetry::Telemetry, Configuration};
@@ -13,6 +13,7 @@ async fn receive_log(
     stream: web::Payload,
 ) -> Result<HttpResponse, Error> {
     let (res, mut session, stream) = actix_ws::handle(&req, stream)?;
+    info!("Received ws connection");
 
     // Fluentbit chunks can be up to 2MiB
     let two_mib = 2 * 1024 * 1024;
@@ -26,6 +27,7 @@ async fn receive_log(
         while let Some(msg) = stream.next().await {
             match msg {
                 Ok(AggregatedMessage::Text(text)) => {
+                    debug!("Received ws message, length: {}", text.chars().count());
                     for line in text.trim().split("\n") {
                         let _ = logprocessor::log_processor(&line.trim().to_string(), &metric_obj, &tracer).await;
                     }
@@ -33,6 +35,7 @@ async fn receive_log(
                 }
 
                 Ok(AggregatedMessage::Ping(msg)) => {
+                    debug!("Received ws ping");
                     // respond to PING frame with PONG frame
                     session.pong(&msg).await.unwrap();
                 }
